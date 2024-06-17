@@ -14,10 +14,11 @@
 #include "assembly.hpp"
 #include "config.hpp"
 
+
 // Measurements as described in section 3.2.1 of the Intel "How to Benchmark
 // Code Execution Times" whitepaper:
 // https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/ia-32-ia-64-benchmark-code-execution-paper.pdf
-static uint64_t dare_time(uint8_t* first, uint8_t* second) {
+static uint64_t dare_time(uint8_t* first, uint8_t* second, const analyzer* analyzer) {
     auto* f = (volatile uint8_t*)first;
     auto* s = (volatile uint8_t*)second;
 
@@ -27,9 +28,12 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
         // before measurement: CPUID + RDTSC
         #if defined(__x84_64__)
             assembly::cpuid();
-        #endif
+            auto start = assembly::rdtsc();
+        #elif defined(__aarch64__)
+	    asm volatile ("dsb sy");
+	    auto start = *analyzer->g_count;
+	#endif
         
-        auto start = assembly::rdtsc();
         
         #if defined(__x84_64__)
             _mm_lfence();
@@ -53,12 +57,14 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
             *s;
         }
 
-        // after measurement: RDTSCP + CPUID
-        auto stop = assembly::rdtscp();
-        
+        // after measurement: RDTSCP + CPUID 
         #if defined(__x84_64__)
+            auto stop = assembly::rdtscp();
             assembly::cpuid();
-        #endif
+        #elif defined(__aarch64__)
+	    asm volatile ("dsb sy");
+            auto stop = *analyzer->g_count;
+	#endif
 
         auto cycles = (stop - start) / DARE_ACCESSES_PER_ITER;
         if (cycles < min_cycles) {
@@ -66,6 +72,7 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
         }
     }
 
+    //LOG("Min cycles %lu\n", min_cycles);
     return min_cycles;
 }
 
@@ -83,7 +90,7 @@ void analyzer::find_row_conflict_threshold(size_t num_clusters, std::optional<st
     for (size_t i = 0; i < NUM_SAMPLES; i++) {
         auto* first = m_memory.get_random_address();
         auto* second = m_memory.get_random_address();
-        auto delta = dare_time(first, second);
+        auto delta = dare_time(first, second, this);
         samples.push_back(delta);
     }
 
@@ -238,7 +245,7 @@ void analyzer::build_clusters(size_t num_clusters) {
 }
 
 bool analyzer::has_row_conflict(uint8_t* first, uint8_t* second) const {
-    return dare_time(first, second) > m_row_conflict_threshold;
+    return dare_time(first, second, this) > m_row_conflict_threshold;
 }
 
 void analyzer::dump_clusters(const std::string& out_file) {

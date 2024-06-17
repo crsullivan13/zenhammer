@@ -1,5 +1,6 @@
 #include <optional>
 #include <string>
+#include <pthread.h>
 
 #include "function.hpp"
 #include "memory.hpp"
@@ -23,6 +24,11 @@ public:
 
     void dump_clusters(std::string const& out_file);
 
+#if defined(__aarch64__)
+    volatile uint64_t* g_count;
+    pthread_t counter_thread;
+#endif
+
 private:
     [[nodiscard]] bool has_row_conflict(uint8_t* first, uint8_t* second) const;
     void clean_cluster(std::vector<uint8_t*>& cluster) const;
@@ -30,4 +36,5 @@ private:
     memory m_memory;
     uint64_t m_row_conflict_threshold { 0 };
     std::vector<std::vector<uintptr_t>> m_clusters;
+
 };

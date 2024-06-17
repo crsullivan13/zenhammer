@@ -11,28 +11,16 @@ inline void cpuid() {
 
 #if defined(__aarch64__)
 
-static volatile uint64_t g_count = 0;
-pthread_t counter_thread;
-
-static void* count_worker(void* params) {
-    uint64_t count = 0;
-    while ( 1 ) {
-        count++;
-        g_count = count;
-    }
-
-    return NULL;
-}
-
+/*
 inline uint64_t rdtsc() {
-    asm volatile (DSB SY);
+    asm volatile ("DSB SY");
     return g_count;
 }
 
 inline uint64_t rdtscp() {
     return rdtsc();
 }
-
+*/
 #else
 
 inline uint64_t rdtsc() {

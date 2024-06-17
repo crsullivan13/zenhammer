@@ -3,7 +3,7 @@
 #include "pagemap.hpp"
 #include "utils.hpp"
 
-constexpr size_t PAGE_OFFSET_BITS = 12;
+constexpr size_t PAGE_OFFSET_BITS = 14;
 constexpr uintptr_t PAGE_OFFSET_MASK = (uintptr_t(1) << PAGE_OFFSET_BITS) - 1;
 constexpr uint64_t PFN_MASK = (uint64_t(1) << 55) - 1;
 
@@ -30,7 +30,8 @@ uintptr_t pagemap::virt_to_phys(void* virt_addr) {
 
     uint64_t info;
     if (fread(&info, sizeof(uint64_t), 1, pagemap_fp) < 1) {
-        perror("fread (pagemap)");
+        LOG("here\n");
+	perror("fread (pagemap)");
         exit(1);
     }
 
