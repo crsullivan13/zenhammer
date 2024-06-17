@@ -14,7 +14,7 @@ inline void cpuid() {
 static volatile uint64_t g_count = 0;
 pthread_t counter_thread;
 
-static void* count_thread(void* params) {
+static void* count_worker(void* params) {
     uint64_t count = 0;
     while ( 1 ) {
         count++;

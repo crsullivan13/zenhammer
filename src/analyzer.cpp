@@ -1,5 +1,7 @@
 #include "sched.h"
+#if defined(__x84_64__)
 #include "x86intrin.h"
+#endif
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -44,7 +46,7 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
             #elif defined(__aarch64__)
                 asm volatile("dc civac, %[ad]" : : [ad] "r" (f) : "memory");
                 asm volatile("dc civac, %[ad]" : : [ad] "r" (s) : "memory");
-                asm volatile("dsb ish" ::: "memory")
+                asm volatile("dsb ish" ::: "memory");
             #endif
 
             *f;
@@ -56,7 +58,7 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
         
         #if defined(__x84_64__)
             assembly::cpuid();
-        #endif;
+        #endif
 
         auto cycles = (stop - start) / DARE_ACCESSES_PER_ITER;
         if (cycles < min_cycles) {

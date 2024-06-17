@@ -81,6 +81,20 @@ int main(int argc, char** argv) {
     parse_args(argc, argv);
     log_verbose = args.log_verbose;
 
+    #if defined(__aarch64__)
+        int count_id = pthread_create(&counter_thread, 0, count_worker, 0);
+        if ( count_id != 0 ) {
+            LOG_ERROR("Count thread failed to start\n");
+            return 1;
+        }
+
+        while ( g_count == 0 ) {
+            asm volatile("dsb sy");
+        }
+
+        LOG("Counter has begun\n");
+    #endif
+
     analyzer analyzer(args.num_superpages);
     if (args.row_conflict_threshold) {
         analyzer.set_row_conflict_threshold(*args.row_conflict_threshold);
