@@ -23,15 +23,29 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
 
     for (size_t i = 0; i < DARE_ITERATIONS; i++) {
         // before measurement: CPUID + RDTSC
-        assembly::cpuid();
+        #if defined(__x84_64__)
+            assembly::cpuid();
+        #endif
+        
         auto start = assembly::rdtsc();
-        _mm_lfence();
+        
+        #if defined(__x84_64__)
+            _mm_lfence();
+        #elif defined(__aarch64__)
+            asm volatile("dmb ishld" ::: "memory");
+        #endif
 
         for (size_t j = 0; j < DARE_ACCESSES_PER_ITER; j++) {
-            _mm_clflush((void*)f);
-            _mm_clflush((void*)s);
-            // clflush is only serialized by mfence, not lfence or sfence
-            _mm_mfence();
+            #if defined(__x84_64__)
+                _mm_clflush((void*)f);
+                _mm_clflush((void*)s);
+                // clflush is only serialized by mfence, not lfence or sfence
+                _mm_mfence();
+            #elif defined(__aarch64__)
+                asm volatile("dc civac, %[ad]" : : [ad] "r" (f) : "memory");
+                asm volatile("dc civac, %[ad]" : : [ad] "r" (s) : "memory");
+                asm volatile("dsb ish" ::: "memory")
+            #endif
 
             *f;
             *s;
@@ -39,7 +53,10 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second) {
 
         // after measurement: RDTSCP + CPUID
         auto stop = assembly::rdtscp();
-        assembly::cpuid();
+        
+        #if defined(__x84_64__)
+            assembly::cpuid();
+        #endif;
 
         auto cycles = (stop - start) / DARE_ACCESSES_PER_ITER;
         if (cycles < min_cycles) {
