@@ -30,15 +30,21 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second, const analyzer* analy
             assembly::cpuid();
             auto start = assembly::rdtsc();
         #elif defined(__aarch64__)
-	    asm volatile ("dsb sy");
-	    auto start = *analyzer->g_count;
-	#endif
+            asm volatile ("dsb sy");
+            auto start = *analyzer->g_count;
+	#elif defined(__riscv)
+	    (void)analyzer;
+            asm volatile ("fence iorw, iorw" ::: "memory");
+            auto start = assembly::rdtsc();
+        #endif
         
         
         #if defined(__x84_64__)
             _mm_lfence();
         #elif defined(__aarch64__)
             asm volatile("dmb ishld" ::: "memory");
+        #elif defined(__riscv)
+            asm volatile("fence r, r" ::: "memory");
         #endif
 
         for (size_t j = 0; j < DARE_ACCESSES_PER_ITER; j++) {
@@ -51,6 +57,20 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second, const analyzer* analy
                 asm volatile("dc civac, %[ad]" : : [ad] "r" (f) : "memory");
                 asm volatile("dc civac, %[ad]" : : [ad] "r" (s) : "memory");
                 asm volatile("dsb ish" ::: "memory");
+            #elif defined(__riscv)
+               asm volatile("xor a7, a7, a7\n"
+               "add a7, a7, %0\n"
+               ".long 0x278800b" // DCACHE.CIVA a7
+               :
+               : "r"(f)
+               : "a7", "memory");
+  	       asm volatile("xor a7, a7, a7\n"
+               "add a7, a7, %0\n"
+               ".long 0x278800b" // DCACHE.CIVA a7
+               :
+               : "r"(s)
+               : "a7", "memory");
+	       asm volatile("fence rw, rw" ::: "memory");
             #endif
 
             *f;
@@ -62,9 +82,12 @@ static uint64_t dare_time(uint8_t* first, uint8_t* second, const analyzer* analy
             auto stop = assembly::rdtscp();
             assembly::cpuid();
         #elif defined(__aarch64__)
-	    asm volatile ("dsb sy");
+	        asm volatile ("dsb sy");
             auto stop = *analyzer->g_count;
-	#endif
+	    #elif defined(__riscv)
+            asm volatile ("fence iorw, iorw" ::: "memory");
+            auto stop = assembly::rdtscp();
+        #endif
 
         auto cycles = (stop - start) / DARE_ACCESSES_PER_ITER;
         if (cycles < min_cycles) {

@@ -9,19 +9,20 @@ inline void cpuid() {
         "cpuid\n\t" ::: "%rax", "%rbx", "%rcx", "%rdx");
 }
 
-#if defined(__aarch64__)
+#if defined(__riscv)
 
-/*
+
 inline uint64_t rdtsc() {
-    asm volatile ("DSB SY");
-    return g_count;
+    uint64_t val;
+    asm volatile("rdcycle %0" : "=r"(val));
+    return val;
 }
 
 inline uint64_t rdtscp() {
     return rdtsc();
 }
-*/
-#else
+
+#elif defined(__x86_64__)
 
 inline uint64_t rdtsc() {
     uint32_t cycles_high, cycles_low;

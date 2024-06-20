@@ -106,7 +106,11 @@ int main(int argc, char** argv) {
         }
 
         while ( *analyzer.g_count == 0 ) {
-            asm volatile("dsb sy");
+	    #if defined(__aarch64__)
+		asm volatile("dsb sy");
+	    #elif defined(__riscv)
+	        asm volatile("fence iorw, iorw");
+	    #endif
         }
 
         LOG("Counter has begun\n");
